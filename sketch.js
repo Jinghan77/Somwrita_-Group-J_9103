@@ -9,5 +9,9 @@ function setup(){
   stroke(0);
   strokeWeight(6);
 
-  
+  let y = 0;
+  while(y< canvasSize){
+    let x = 0
+    let h = random(rectHeights)
+  }
 }
