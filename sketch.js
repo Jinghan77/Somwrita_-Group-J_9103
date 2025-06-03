@@ -25,6 +25,10 @@ function setup(){
         w = canvasSize - x;
       }
 
-      
+      fill(random(colors));
+      rect(x, y, w, h);
+      x += w;
+    }
+    y += h;
   }
 }
