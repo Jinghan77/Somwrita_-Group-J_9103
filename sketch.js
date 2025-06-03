@@ -12,6 +12,12 @@ function setup(){
   let y = 0;
   while(y< canvasSize){
     let x = 0
-    let h = random(rectHeights)
+    let h = random(rectHeights);
+
+    if(y + h> canvasSize){
+      h = canvasSize - y;
+    }
+
+
   }
 }
