@@ -18,6 +18,13 @@ function setup(){
       h = canvasSize - y;
     }
 
+    while (x < canvasSize){
+      let w = random(rectWidths);
 
+      if (x+ w > canvasSize){
+        w = canvasSize - x;
+      }
+
+      
   }
 }
