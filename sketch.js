@@ -7,7 +7,7 @@ function setup(){
   createCanvas(canvasSize, canvasSize);
   background(0);
   stroke(0);
-  strokeWeight(6);
+  strokeWeight(5);
 
   let y = 0;
   while(y< canvasSize){
