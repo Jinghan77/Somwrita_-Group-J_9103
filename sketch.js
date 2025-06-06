@@ -37,7 +37,18 @@ function drawBackground() {
 
   for(let i= 0; i<4; i++){
     let x2 = i* (canvasSize / 4)+ random(-10, 10);
-    let w2 = random([40, 50, 60])
+    let w2 = random([40, 50, 60]);
+
+    let y2= 0;
+    while(y2< canvasSize){
+      let h2 = random(rectHeights);
+      if(y2+h2 > canvasSize){
+        h2 = canvasSize - y2;
+      }
+      fill(random(colors));
+      rect(x2, y2, w2, h2);
+      y2 += h2;
+    }
   }
 }
 
