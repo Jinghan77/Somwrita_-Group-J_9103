@@ -37,7 +37,7 @@ function drawBackground() {
 
   for(let i= 0; i<4; i++){
     let x2 = i* (canvasSize / 4)+ random(-10, 10);
-    
+    let w2 = random([40, 50, 60])
   }
 }
 
