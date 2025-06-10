@@ -99,8 +99,8 @@ function draw() {
 
   pop();
 
-  fill(255, 255, 255);
-  rect(width / 2 - 310, height - 70, 620, 50)
+  fill(255, 255, 255, 150);
+  rect(width / 2 - 310, height - 70, 620, 50, 10)
 
   fill(0);
   textSize(32);
