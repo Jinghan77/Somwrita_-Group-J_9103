@@ -20,10 +20,13 @@ let ghostProgress = 0;
 let pacmanX = 0, pacmanY = 0;
 let ghostX = 0, ghostY = 0;
 
-let animationStarted = false;
+
 let lastStepTime = 0;
 const stepInterval = 100; // 毫秒
-let timer;
+let animationStarted = false;
+let timer = null;
+
+
 
 const numCharacters = 5;
 let charLastPath = new Array(numCharacters).fill(-1);  // 上一次走的路径索引
@@ -50,6 +53,8 @@ function setup() {
   textFont(pixelFont);
   fill(255);
   pixelDensity(2);
+
+  setInterval(regenerateBackground, 5000);
 
   pointsPacman = pixelFont.textToPoints("Pacman", 130 + offsetX, 70, 100, {
     sampleFactor: 0.12,
@@ -116,6 +121,7 @@ function draw() {
   buildPathGraph();
   drawPath();
   drawDots();
+  
 
   if (animationStarted && millis() - lastStepTime > stepInterval) {
     stepCharacters();
@@ -123,18 +129,13 @@ function draw() {
   }
 
   if (animationStarted) {
-    drawPixelPacman(charPositions[0].x - 30, charPositions[0].y + 265, color(255, 255, 0)); // Pac-Man
-    drawPixelGhost(charPositions[1].x - 30, charPositions[1].y + 265, color(255, 0, 0));     // red
-    drawPixelGhost(charPositions[2].x - 30, charPositions[2].y + 265, color(255, 100, 0));   // orange
-    drawPixelGhost(charPositions[3].x - 30, charPositions[3].y + 265, color(0, 200, 0));     // green
-    drawPixelGhost(charPositions[4].x - 30, charPositions[4].y + 265, color(90, 90, 255));   // purple
+    drawPixelPacman(charPositions[0].x - 42, charPositions[0].y + 260, color(255, 255, 0)); // Pac-Man
+    drawPixelGhost(charPositions[1].x - 42, charPositions[1].y + 260, color(255, 0, 0));     // red
+    drawPixelGhost(charPositions[2].x - 42, charPositions[2].y + 260, color(255, 100, 0));   // orange
+    drawPixelGhost(charPositions[3].x - 42, charPositions[3].y + 260, color(0, 200, 0));     // green
+    drawPixelGhost(charPositions[4].x - 42, charPositions[4].y + 260, color(90, 90, 255));   // purple
   }
   
-
-  drawPixelGhost(223, 360, color(255, 100, 0)); //orange
-  drawPixelGhost(108, 635, color(0, 200, 0)); //green
-  drawPixelGhost(95, 405, color(90, 90, 255)); //purple
-
   pop();
 
   fill(255, 255, 255, 150);
@@ -142,7 +143,7 @@ function draw() {
 
   fill(0);
   textSize(32);
-  text("Click the screen to start the animation", width / 2, height - 30);
+  text("Click the screen to start the animation.", width / 2, height - 30);
 }
 
 function drawBackground() {
@@ -152,10 +153,15 @@ function drawBackground() {
 function drawScreen() {
   fill(255, 255, 255);
   rect(138 + offsetX, 270, 400, 400);
-  let brightness = 255;
+
+  // 亮度动态变化（范围 100 ~ 255）
+  let t = millis() / 500;
+  let brightness = 100 + 155 * abs(sin(t));  // 使用 abs 使其更自然
+
   drawNeonText(pointsPacman, brightness);
   drawNeonText(pointsPiet, brightness);
 }
+
 
 function setPaths(){
   let originalPaths = [
@@ -285,10 +291,31 @@ function drawPixelPacman(x, y, bodyColor) {
 function mousePressed() {
   if (!animationStarted) {
     animationStarted = true;
+
+    // 初始化所有角色位置和状态
     setInitialPositions();
-    lastStepTime = millis(); // 重置计时
+
+    // 只设置一次定时器，防止重复注册
+    if (!timer) {
+      timer = setInterval(stepCharacters, stepInterval);
+    }
   }
 }
+
+function resetAnimation() {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+  animationStarted = false;
+}
+
+function keyPressed() {
+  if (key === 'r') {
+    resetAnimation();
+  }
+}
+
 
 function setInitialPositions() {
   for (let i = 0; i < numCharacters; i++) {
@@ -460,6 +487,41 @@ function pointsMatch(p1, p2) {
 }
 
 
+function regenerateBackground() {
+  layer = createGraphics(screenSize, screenSize);
+  layer.stroke(0);
+  layer.strokeWeight(4);
+
+  let y = 0;
+  while (y < screenSize) {
+    let x = 0;
+    let h = random(rectHeights);
+    if (y + h > screenSize) h = screenSize - y;
+
+    while (x < screenSize) {
+      let w = random(rectWidths);
+      if (x + w > screenSize) w = screenSize - x;
+
+      layer.fill(random(colors));
+      layer.rect(x, y, w, h);
+      x += w;
+    }
+    y += h;
+  }
+
+  for (let i = 0; i < 4; i++) {
+    let x2 = i * (screenSize / 4) + random(-10, 10);
+    let w2 = random([40, 50, 60]);
+    let y2 = 0;
+    while (y2 < screenSize) {
+      let h2 = random(rectHeights);
+      if (y2 + h2 > screenSize) h2 = screenSize - y2;
+      layer.fill(random(colors));
+      layer.rect(x2, y2, w2, h2);
+      y2 += h2;
+    }
+  }
+}
 
 
 
