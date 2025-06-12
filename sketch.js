@@ -11,7 +11,7 @@ let paths = [];
 
 let layer; 
 
-const stepInterval = 100; // 每 100ms 移动一次
+
 let pacmanIndex = 0;
 let ghostIndex = 0;
 let pacmanProgress = 0;
@@ -21,6 +21,8 @@ let pacmanX = 0, pacmanY = 0;
 let ghostX = 0, ghostY = 0;
 
 let animationStarted = false;
+let lastStepTime = 0;
+const stepInterval = 100; // 毫秒
 let timer;
 
 const numCharacters = 5;
@@ -115,12 +117,11 @@ function draw() {
   drawPath();
   drawDots();
 
-  // drawPixelPacman(138, 486, color(255, 255, 0)); // pacman
-  // drawPixelGhost(288, 435, color(255, 0, 0)); // red
-  // if (animationStarted) {
-  // drawPixelPacman(pacmanX - 30, pacmanY + 265, color(255, 255, 0));
-  // drawPixelGhost(ghostX - 30, ghostY + 265, color(255, 0, 0));
-  // }
+  if (animationStarted && millis() - lastStepTime > stepInterval) {
+    stepCharacters();
+    lastStepTime = millis();
+  }
+
   if (animationStarted) {
     drawPixelPacman(charPositions[0].x - 30, charPositions[0].y + 265, color(255, 255, 0)); // Pac-Man
     drawPixelGhost(charPositions[1].x - 30, charPositions[1].y + 265, color(255, 0, 0));     // red
@@ -285,7 +286,7 @@ function mousePressed() {
   if (!animationStarted) {
     animationStarted = true;
     setInitialPositions();
-    timer = setInterval(stepCharacters, stepInterval);
+    lastStepTime = millis(); // 重置计时
   }
 }
 
@@ -320,13 +321,24 @@ function pointsMatch(p1, p2) {
   return dist(p1.x, p1.y, p2.x, p2.y) < 0.5;
 }
 
+function pointsMatch(p1, p2) {
+  return dist(p1.x, p1.y, p2.x, p2.y) < 0.5;
+}
+
+function isReversePath(fromPoint, toPath, wasReversed) {
+  let toA = { x: toPath.x1, y: toPath.y1 };
+  let toB = { x: toPath.x2, y: toPath.y2 };
+  let otherEnd = wasReversed ? toB : toA;
+  return pointsMatch(fromPoint, otherEnd);
+}
+
 
 function moveAlongPath(i) {
   let index = charIndices[i];
   let progress = charProgress[i];
   let p = paths[index];
 
-  // 根据当前方向计算移动向量
+  // 计算方向
   let dx = charReverse[i] ? p.x1 - p.x2 : p.x2 - p.x1;
   let dy = charReverse[i] ? p.y1 - p.y2 : p.y2 - p.y1;
   let len = dist(p.x1, p.y1, p.x2, p.y2);
@@ -334,52 +346,72 @@ function moveAlongPath(i) {
 
   progress++;
 
-  // 如果走到当前路径的终点，选择一条连通路径继续走
   if (progress > steps) {
     let fromPoint = charReverse[i]
       ? { x: p.x1, y: p.y1 }
       : { x: p.x2, y: p.y2 };
 
+    // 获取候选路径（不包括刚走过的）
     let nextCandidates = pathGraph[index].filter(j => j !== charLastPath[i]);
 
     if (nextCandidates.length > 0) {
-      let next = random(nextCandidates);
+      // 权重设定（越大越倾向于选择）
+      const reverseBias = 1;
+      const turnBias = 3;
+
+      let weighted = [];
+
+      for (let next of nextCandidates) {
+        let nextP = paths[next];
+        if (isReversePath(fromPoint, nextP, charReverse[i])) {
+          // 掉头路径，少权重
+          for (let n = 0; n < reverseBias; n++) weighted.push(next);
+        } else {
+          // 转向路径，多权重
+          for (let n = 0; n < turnBias; n++) weighted.push(next);
+        }
+      }
+
+      let next = random(weighted);
       let nextP = paths[next];
 
-      // 判断新路径的方向：哪个端点和当前端点对得上
+      // 判断进入方向
       if (pointsMatch(fromPoint, { x: nextP.x1, y: nextP.y1 })) {
         charReverse[i] = false;
       } else if (pointsMatch(fromPoint, { x: nextP.x2, y: nextP.y2 })) {
         charReverse[i] = true;
+      } else {
+        charProgress[i] = steps;
+        return;
       }
 
       // 切换路径
       charLastPath[i] = index;
       index = next;
-      progress = 0;
+      progress = 1;
 
-      // 更新新路径参数
+      // 更新新路径数据
       p = paths[index];
       dx = charReverse[i] ? p.x1 - p.x2 : p.x2 - p.x1;
       dy = charReverse[i] ? p.y1 - p.y2 : p.y2 - p.y1;
       len = dist(p.x1, p.y1, p.x2, p.y2);
       steps = Math.floor(len / 5);
     } else {
-      progress = steps; // 没得走就停在终点
+      progress = steps; // 到尽头了，停住
     }
   }
 
-  // 插值更新角色位置
+  // 插值更新坐标
   let t = progress / steps;
-  let newX = charReverse[i] ? p.x2 + dx * t : p.x1 + dx * t;
-  let newY = charReverse[i] ? p.y2 + dy * t : p.y1 + dy * t;
+  let xStart = charReverse[i] ? p.x2 : p.x1;
+  let yStart = charReverse[i] ? p.y2 : p.y1;
+  let newX = xStart + dx * t;
+  let newY = yStart + dy * t;
 
   charIndices[i] = index;
   charProgress[i] = progress;
   charPositions[i] = { x: newX, y: newY };
 }
-
-
 
 
 
