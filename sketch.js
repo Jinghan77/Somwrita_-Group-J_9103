@@ -23,6 +23,16 @@ let ghostX = 0, ghostY = 0;
 let animationStarted = false;
 let timer;
 
+const numCharacters = 5;
+let charLastPath = new Array(numCharacters).fill(-1);  // 上一次走的路径索引
+let charReverse = new Array(numCharacters).fill(false); // 是否反向走当前路径
+
+let charIndices = new Array(numCharacters).fill(0);     // 当前路径索引
+let charProgress = new Array(numCharacters).fill(0);    // 在当前路径中前进步数
+let charPositions = new Array(numCharacters).fill({x:0, y:0}); // 当前坐标
+let charStepCounters = new Array(numCharacters).fill(0); // 专用于循环选择的 ghost green
+
+
 
 function preload() {
   pixelFont = loadFont("assets/pixelFont.TTF");
@@ -101,15 +111,24 @@ function draw() {
   drawScreen();
   drawBackground(); 
   setPaths();
+  buildPathGraph();
   drawPath();
   drawDots();
 
   // drawPixelPacman(138, 486, color(255, 255, 0)); // pacman
   // drawPixelGhost(288, 435, color(255, 0, 0)); // red
+  // if (animationStarted) {
+  // drawPixelPacman(pacmanX - 30, pacmanY + 265, color(255, 255, 0));
+  // drawPixelGhost(ghostX - 30, ghostY + 265, color(255, 0, 0));
+  // }
   if (animationStarted) {
-  drawPixelPacman(pacmanX - 30, pacmanY + 265, color(255, 255, 0));
-  drawPixelGhost(ghostX - 30, ghostY + 265, color(255, 0, 0));
+    drawPixelPacman(charPositions[0].x - 30, charPositions[0].y + 265, color(255, 255, 0)); // Pac-Man
+    drawPixelGhost(charPositions[1].x - 30, charPositions[1].y + 265, color(255, 0, 0));     // red
+    drawPixelGhost(charPositions[2].x - 30, charPositions[2].y + 265, color(255, 100, 0));   // orange
+    drawPixelGhost(charPositions[3].x - 30, charPositions[3].y + 265, color(0, 200, 0));     // green
+    drawPixelGhost(charPositions[4].x - 30, charPositions[4].y + 265, color(90, 90, 255));   // purple
   }
+  
 
   drawPixelGhost(223, 360, color(255, 100, 0)); //orange
   drawPixelGhost(108, 635, color(0, 200, 0)); //green
@@ -139,30 +158,29 @@ function drawScreen() {
 
 function setPaths(){
   let originalPaths = [
-    // horizon paths
-    [25, 25, 185, 25],
-    [265, 25, 375, 25],
-    [25, 105, 265, 105],
-    [235, 175, 375, 175],
-    [135, 175, 185, 175],
-    [105, 225, 285, 225],
-    [25, 275, 105, 275],
-    [235, 275, 375, 275],
-    [25, 375, 185, 375],
-    [285, 375, 375, 375],
-    // vertical paths
-    [25, 25, 25, 100],
-    [265, 25, 265, 175],
-    [375, 25, 375, 175],
-    [185, 25, 185, 105],
-    [135, 105, 135, 175],
-    [185, 175, 185, 375],
-    [235, 175, 235, 275],
-    [105, 225, 105, 275],
-    [285, 225, 285, 375],
-    [25, 275, 25, 375],
-    [375, 275, 375, 375]
+    [25, 25, 185, 25],     // 0
+    [265, 25, 375, 25],    // 1
+    [25, 105, 265, 105],   // 2
+    [235, 175, 375, 175],  // 3
+    [135, 175, 185, 175],  // 4
+    [105, 225, 285, 225],  // 5
+    [25, 275, 105, 275],   // 6
+    [235, 275, 375, 275],  // 7
+    [25, 375, 185, 375],   // 8
+    [285, 375, 375, 375],  // 9
+    [25, 25, 25, 105],     // 10
+    [265, 25, 265, 175],   // 11
+    [375, 25, 375, 175],   // 12
+    [185, 25, 185, 105],   // 13
+    [135, 105, 135, 175],  // 14
+    [185, 175, 185, 375],  // 15
+    [235, 175, 235, 275],  // 16
+    [105, 225, 105, 275],  // 17
+    [285, 225, 285, 375],  // 18
+    [25, 275, 25, 375],    // 19
+    [375, 275, 375, 375]   // 20
   ];
+  
 
   // Convert each group of coordinates into an object {x1, y1, x2, y2} and store it in paths. 
   for (let p of originalPaths){
@@ -272,55 +290,147 @@ function mousePressed() {
 }
 
 function setInitialPositions() {
-  pacmanIndex = 0;
-  ghostIndex = 3; // ghost 从第4条路径开始
-  pacmanProgress = 0;
-  ghostProgress = 0;
+  for (let i = 0; i < numCharacters; i++) {
+    // 初始化每个角色的起始路径索引（可根据需要设定不同起点）
+    charIndices[i] = (i * 3) % paths.length;
 
-  pacmanX = paths[pacmanIndex].x1;
-  pacmanY = paths[pacmanIndex].y1;
-  ghostX = paths[ghostIndex].x1;
-  ghostY = paths[ghostIndex].y1;
+    // 初始化角色在路径上的进度
+    charProgress[i] = 0;
+
+    // 初始化“上一次走的路径”为 -1（表示无）
+    charLastPath[i] = -1;
+
+    // 初始化每个角色的路径方向（默认正向，从 x1,y1 -> x2,y2）
+    charReverse[i] = false;
+
+    // 初始化绿色幽灵的路径选择序号
+    charStepCounters[i] = 0;
+
+    // 设置初始坐标
+    let p = paths[charIndices[i]];
+    let x = p.x1;
+    let y = p.y1;
+
+    // 存入当前位置（注意：每个 charPositions[i] 是一个独立对象）
+    charPositions[i] = { x: x, y: y };
+  }
 }
 
-function stepCharacters() {
-  moveAlongPath('pacman');
-  moveAlongPath('ghost');
+function pointsMatch(p1, p2) {
+  return dist(p1.x, p1.y, p2.x, p2.y) < 0.5;
 }
 
-function moveAlongPath(char) {
-  let index = char === 'pacman' ? pacmanIndex : ghostIndex;
-  let progress = char === 'pacman' ? pacmanProgress : ghostProgress;
 
+function moveAlongPath(i) {
+  let index = charIndices[i];
+  let progress = charProgress[i];
   let p = paths[index];
-  let dx = p.x2 - p.x1;
-  let dy = p.y2 - p.y1;
+
+  // 根据当前方向计算移动向量
+  let dx = charReverse[i] ? p.x1 - p.x2 : p.x2 - p.x1;
+  let dy = charReverse[i] ? p.y1 - p.y2 : p.y2 - p.y1;
   let len = dist(p.x1, p.y1, p.x2, p.y2);
-  let steps = Math.floor(len / 5); // 每段路径分多少步走
+  let steps = Math.floor(len / 5);
 
   progress++;
+
+  // 如果走到当前路径的终点，选择一条连通路径继续走
   if (progress > steps) {
-    // 走完当前路径，切换到下一段路径
-    index = (index + 1) % paths.length;
-    progress = 0;
+    let fromPoint = charReverse[i]
+      ? { x: p.x1, y: p.y1 }
+      : { x: p.x2, y: p.y2 };
+
+    let nextCandidates = pathGraph[index].filter(j => j !== charLastPath[i]);
+
+    if (nextCandidates.length > 0) {
+      let next = random(nextCandidates);
+      let nextP = paths[next];
+
+      // 判断新路径的方向：哪个端点和当前端点对得上
+      if (pointsMatch(fromPoint, { x: nextP.x1, y: nextP.y1 })) {
+        charReverse[i] = false;
+      } else if (pointsMatch(fromPoint, { x: nextP.x2, y: nextP.y2 })) {
+        charReverse[i] = true;
+      }
+
+      // 切换路径
+      charLastPath[i] = index;
+      index = next;
+      progress = 0;
+
+      // 更新新路径参数
+      p = paths[index];
+      dx = charReverse[i] ? p.x1 - p.x2 : p.x2 - p.x1;
+      dy = charReverse[i] ? p.y1 - p.y2 : p.y2 - p.y1;
+      len = dist(p.x1, p.y1, p.x2, p.y2);
+      steps = Math.floor(len / 5);
+    } else {
+      progress = steps; // 没得走就停在终点
+    }
   }
 
+  // 插值更新角色位置
   let t = progress / steps;
-  let newX = p.x1 + dx * t;
-  let newY = p.y1 + dy * t;
+  let newX = charReverse[i] ? p.x2 + dx * t : p.x1 + dx * t;
+  let newY = charReverse[i] ? p.y2 + dy * t : p.y1 + dy * t;
 
-  if (char === 'pacman') {
-    pacmanIndex = index;
-    pacmanProgress = progress;
-    pacmanX = newX;
-    pacmanY = newY;
-  } else {
-    ghostIndex = index;
-    ghostProgress = progress;
-    ghostX = newX;
-    ghostY = newY;
+  charIndices[i] = index;
+  charProgress[i] = progress;
+  charPositions[i] = { x: newX, y: newY };
+}
+
+
+
+
+
+function stepCharacters() {
+  console.log("moving");
+  for (let i = 0; i < numCharacters; i++) {
+    moveAlongPath(i);  
   }
 }
+
+
+let pathGraph = [];
+
+function buildPathGraph() {
+  pathGraph = [];
+
+  // 预先将每条路径加入空连接列表
+  for (let i = 0; i < paths.length; i++) {
+    pathGraph.push([]);
+  }
+
+  // 任意路径的任意端点都可以与另一条路径的任意端点连接
+  for (let i = 0; i < paths.length; i++) {
+    let p1a = { x: paths[i].x1, y: paths[i].y1 };
+    let p1b = { x: paths[i].x2, y: paths[i].y2 };
+
+    for (let j = 0; j < paths.length; j++) {
+      if (i === j) continue;
+
+      let p2a = { x: paths[j].x1, y: paths[j].y1 };
+      let p2b = { x: paths[j].x2, y: paths[j].y2 };
+
+      if (pointsMatch(p1a, p2a) || pointsMatch(p1a, p2b) ||
+          pointsMatch(p1b, p2a) || pointsMatch(p1b, p2b)) {
+        if (!pathGraph[i].includes(j)) {
+          pathGraph[i].push(j);
+        }
+      }
+    }
+  }
+}
+
+// 判断点是否相等（允许小误差）
+function pointsMatch(p1, p2) {
+  return dist(p1.x, p1.y, p2.x, p2.y) < 0.5; // 容差防止浮点误差
+}
+
+
+
+
+
 
 
 function drawBody(){
