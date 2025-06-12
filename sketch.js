@@ -11,6 +11,19 @@ let paths = [];
 
 let layer; 
 
+const stepInterval = 100; // 每 100ms 移动一次
+let pacmanIndex = 0;
+let ghostIndex = 0;
+let pacmanProgress = 0;
+let ghostProgress = 0;
+
+let pacmanX = 0, pacmanY = 0;
+let ghostX = 0, ghostY = 0;
+
+let animationStarted = false;
+let timer;
+
+
 function preload() {
   pixelFont = loadFont("assets/pixelFont.TTF");
 }
@@ -91,8 +104,13 @@ function draw() {
   drawPath();
   drawDots();
 
-  drawPixelPacman(138, 486, color(255, 255, 0)); // pacman
-  drawPixelGhost(288, 435, color(255, 0, 0)); // red
+  // drawPixelPacman(138, 486, color(255, 255, 0)); // pacman
+  // drawPixelGhost(288, 435, color(255, 0, 0)); // red
+  if (animationStarted) {
+  drawPixelPacman(pacmanX - 30, pacmanY + 265, color(255, 255, 0));
+  drawPixelGhost(ghostX - 30, ghostY + 265, color(255, 0, 0));
+  }
+
   drawPixelGhost(223, 360, color(255, 100, 0)); //orange
   drawPixelGhost(108, 635, color(0, 200, 0)); //green
   drawPixelGhost(95, 405, color(90, 90, 255)); //purple
@@ -104,7 +122,7 @@ function draw() {
 
   fill(0);
   textSize(32);
-  text("Click the screen to start the music", width / 2, height - 30);
+  text("Click the screen to start the animation", width / 2, height - 30);
 }
 
 function drawBackground() {
@@ -242,6 +260,65 @@ function drawPixelPacman(x, y, bodyColor) {
       else continue;  
       rect(x + col * s, y + row * s, s, s);
     }
+  }
+}
+
+function mousePressed() {
+  if (!animationStarted) {
+    animationStarted = true;
+    setInitialPositions();
+    timer = setInterval(stepCharacters, stepInterval);
+  }
+}
+
+function setInitialPositions() {
+  pacmanIndex = 0;
+  ghostIndex = 3; // ghost 从第4条路径开始
+  pacmanProgress = 0;
+  ghostProgress = 0;
+
+  pacmanX = paths[pacmanIndex].x1;
+  pacmanY = paths[pacmanIndex].y1;
+  ghostX = paths[ghostIndex].x1;
+  ghostY = paths[ghostIndex].y1;
+}
+
+function stepCharacters() {
+  moveAlongPath('pacman');
+  moveAlongPath('ghost');
+}
+
+function moveAlongPath(char) {
+  let index = char === 'pacman' ? pacmanIndex : ghostIndex;
+  let progress = char === 'pacman' ? pacmanProgress : ghostProgress;
+
+  let p = paths[index];
+  let dx = p.x2 - p.x1;
+  let dy = p.y2 - p.y1;
+  let len = dist(p.x1, p.y1, p.x2, p.y2);
+  let steps = Math.floor(len / 5); // 每段路径分多少步走
+
+  progress++;
+  if (progress > steps) {
+    // 走完当前路径，切换到下一段路径
+    index = (index + 1) % paths.length;
+    progress = 0;
+  }
+
+  let t = progress / steps;
+  let newX = p.x1 + dx * t;
+  let newY = p.y1 + dy * t;
+
+  if (char === 'pacman') {
+    pacmanIndex = index;
+    pacmanProgress = progress;
+    pacmanX = newX;
+    pacmanY = newY;
+  } else {
+    ghostIndex = index;
+    ghostProgress = progress;
+    ghostX = newX;
+    ghostY = newY;
   }
 }
 
