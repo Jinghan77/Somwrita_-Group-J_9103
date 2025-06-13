@@ -22,20 +22,20 @@ let ghostX = 0, ghostY = 0;
 
 
 let lastStepTime = 0;
-const stepInterval = 100; // 毫秒
+const stepInterval = 100;
 let animationStarted = false;
 let timer = null;
 
 
 
 const numCharacters = 5;
-let charLastPath = new Array(numCharacters).fill(-1);  // 上一次走的路径索引
-let charReverse = new Array(numCharacters).fill(false); // 是否反向走当前路径
+let charLastPath = new Array(numCharacters).fill(-1);  // path last time
+let charReverse = new Array(numCharacters).fill(false); // if turned back or not
 
-let charIndices = new Array(numCharacters).fill(0);     // 当前路径索引
-let charProgress = new Array(numCharacters).fill(0);    // 在当前路径中前进步数
-let charPositions = new Array(numCharacters).fill({x:0, y:0}); // 当前坐标
-let charStepCounters = new Array(numCharacters).fill(0); // 专用于循环选择的 ghost green
+let charIndices = new Array(numCharacters).fill(0);     // index of current path
+let charProgress = new Array(numCharacters).fill(0);    // steps on this path
+let charPositions = new Array(numCharacters).fill({x:0, y:0}); // current location
+let charStepCounters = new Array(numCharacters).fill(0); 
 
 
 
@@ -68,7 +68,7 @@ push();
   layer = createGraphics(screenSize, screenSize);
   layer.stroke(0);
   layer.strokeWeight(4);
-
+// initial background drawing method
   let y = 0;
   while (y < screenSize) {
     let x = 0;
@@ -128,6 +128,7 @@ function draw() {
     lastStepTime = millis();
   }
 
+  // draw the character in its initial position
   if (animationStarted) {
     drawPixelPacman(charPositions[0].x - 42, charPositions[0].y + 260, color(255, 255, 0)); // Pac-Man
     drawPixelGhost(charPositions[1].x - 42, charPositions[1].y + 260, color(255, 0, 0));     // red
@@ -154,10 +155,9 @@ function drawScreen() {
   fill(255, 255, 255);
   rect(138 + offsetX, 270, 400, 400);
 
-  // 亮度动态变化（范围 100 ~ 255）
+  // Brightness range 100 ~ 255
   let t = millis() / 500;
-  let brightness = 100 + 155 * abs(sin(t));  // 使用 abs 使其更自然
-
+  let brightness = 100 + 155 * abs(sin(t));  // abs smoother
   drawNeonText(pointsPacman, brightness);
   drawNeonText(pointsPiet, brightness);
 }
@@ -206,6 +206,7 @@ function drawPath(){
   }
 }
 
+// dots on the road
 function drawDots(){
   let dotSize = 4;
   let dotSpacing = 10;
@@ -292,10 +293,10 @@ function mousePressed() {
   if (!animationStarted) {
     animationStarted = true;
 
-    // 初始化所有角色位置和状态
+    // initialize all character positions and states
     setInitialPositions();
 
-    // 只设置一次定时器，防止重复注册
+    // set the timer only once, prevent duplicate registration
     if (!timer) {
       timer = setInterval(stepCharacters, stepInterval);
     }
@@ -319,27 +320,28 @@ function keyPressed() {
 
 function setInitialPositions() {
   for (let i = 0; i < numCharacters; i++) {
-    // 初始化每个角色的起始路径索引（可根据需要设定不同起点）
+    // initialize the starting path index for each character
     charIndices[i] = (i * 3) % paths.length;
 
-    // 初始化角色在路径上的进度
+    // initialize the character's progress on the path
     charProgress[i] = 0;
 
-    // 初始化“上一次走的路径”为 -1（表示无）
+    // initialize the "last path" is -1 (indicates none)
     charLastPath[i] = -1;
 
-    // 初始化每个角色的路径方向（默认正向，从 x1,y1 -> x2,y2）
+    // initialize the path direction of each character 
+    // (forward by default, from x1,y1 -> x2,y2)
     charReverse[i] = false;
 
-    // 初始化绿色幽灵的路径选择序号
+    // initialize the path selection sequence number of the green ghost
     charStepCounters[i] = 0;
 
-    // 设置初始坐标
+    // set initial coordinates
     let p = paths[charIndices[i]];
     let x = p.x1;
     let y = p.y1;
 
-    // 存入当前位置（注意：每个 charPositions[i] 是一个独立对象）
+    // Save current location
     charPositions[i] = { x: x, y: y };
   }
 }
@@ -365,7 +367,7 @@ function moveAlongPath(i) {
   let progress = charProgress[i];
   let p = paths[index];
 
-  // 计算方向
+  // calculate direction
   let dx = charReverse[i] ? p.x1 - p.x2 : p.x2 - p.x1;
   let dy = charReverse[i] ? p.y1 - p.y2 : p.y2 - p.y1;
   let len = dist(p.x1, p.y1, p.x2, p.y2);
@@ -378,11 +380,11 @@ function moveAlongPath(i) {
       ? { x: p.x1, y: p.y1 }
       : { x: p.x2, y: p.y2 };
 
-    // 获取候选路径（不包括刚走过的）
+    // choose the path to take
     let nextCandidates = pathGraph[index].filter(j => j !== charLastPath[i]);
 
     if (nextCandidates.length > 0) {
-      // 权重设定（越大越倾向于选择）
+      // Weighting to reduce the probability of going back
       const reverseBias = 1;
       const turnBias = 3;
 
@@ -391,10 +393,10 @@ function moveAlongPath(i) {
       for (let next of nextCandidates) {
         let nextP = paths[next];
         if (isReversePath(fromPoint, nextP, charReverse[i])) {
-          // 掉头路径，少权重
+         
           for (let n = 0; n < reverseBias; n++) weighted.push(next);
         } else {
-          // 转向路径，多权重
+          
           for (let n = 0; n < turnBias; n++) weighted.push(next);
         }
       }
@@ -402,7 +404,7 @@ function moveAlongPath(i) {
       let next = random(weighted);
       let nextP = paths[next];
 
-      // 判断进入方向
+      // determine the direction to go
       if (pointsMatch(fromPoint, { x: nextP.x1, y: nextP.y1 })) {
         charReverse[i] = false;
       } else if (pointsMatch(fromPoint, { x: nextP.x2, y: nextP.y2 })) {
@@ -412,23 +414,23 @@ function moveAlongPath(i) {
         return;
       }
 
-      // 切换路径
+      // switch path
       charLastPath[i] = index;
       index = next;
       progress = 1;
 
-      // 更新新路径数据
+      // update path data
       p = paths[index];
       dx = charReverse[i] ? p.x1 - p.x2 : p.x2 - p.x1;
       dy = charReverse[i] ? p.y1 - p.y2 : p.y2 - p.y1;
       len = dist(p.x1, p.y1, p.x2, p.y2);
       steps = Math.floor(len / 5);
     } else {
-      progress = steps; // 到尽头了，停住
+      progress = steps; // stop at the end
     }
   }
 
-  // 插值更新坐标
+  // insert data to updata location
   let t = progress / steps;
   let xStart = charReverse[i] ? p.x2 : p.x1;
   let yStart = charReverse[i] ? p.y2 : p.y1;
@@ -455,12 +457,12 @@ let pathGraph = [];
 function buildPathGraph() {
   pathGraph = [];
 
-  // 预先将每条路径加入空连接列表
+  // add all path to the empty list
   for (let i = 0; i < paths.length; i++) {
     pathGraph.push([]);
   }
 
-  // 任意路径的任意端点都可以与另一条路径的任意端点连接
+  // paths endpoints connect
   for (let i = 0; i < paths.length; i++) {
     let p1a = { x: paths[i].x1, y: paths[i].y1 };
     let p1b = { x: paths[i].x2, y: paths[i].y2 };
@@ -481,9 +483,9 @@ function buildPathGraph() {
   }
 }
 
-// 判断点是否相等（允许小误差）
+// Close endpoints are considered the same point
 function pointsMatch(p1, p2) {
-  return dist(p1.x, p1.y, p2.x, p2.y) < 0.5; // 容差防止浮点误差
+  return dist(p1.x, p1.y, p2.x, p2.y) < 0.5; // Control accuracy
 }
 
 
@@ -528,7 +530,7 @@ function regenerateBackground() {
 
 
 function drawBody(){
-  // black (机身)
+  // black
     fill(0, 0, 0);
   rect(78 + offsetX, -30, 520, 220);
   rect(88 + offsetX, 220, 500, 500);
